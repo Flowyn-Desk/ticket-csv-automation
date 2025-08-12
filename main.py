@@ -118,3 +118,7 @@ async def run_automation_endpoint():
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'An unexpected error occurred: {e}')
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
