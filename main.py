@@ -4,9 +4,9 @@ import csv
 import io
 import random
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
-
+# Retrieve environment variables.
 BACKEND_URL = os.getenv('BACKEND_URL')
 USERNAME = os.getenv('USERNAME')
 PASSWORD = os.getenv('PASSWORD')
@@ -15,6 +15,27 @@ WORKSPACE_UUID = os.getenv('WORKSPACE_UUID')
 LOGIN_PATH = '/auth/login'
 EXPORT_PATH = f'/ticket/export-pending/{WORKSPACE_UUID}'
 IMPORT_PATH = '/ticket/import-statuses'
+
+def create_app() -> FastAPI:
+    """
+    Creates and configures a simple FastAPI application.
+    """
+    app = FastAPI(
+        title='Ticket CSV Automation',
+        version='1.0.0',
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=['*'],
+        allow_credentials=True,
+        allow_methods=['*'],
+        allow_headers=['*'],
+    )
+    
+    return app
+
+app = create_app()
 
 def get_jwt_token():
     if not all([BACKEND_URL, USERNAME, PASSWORD]):
