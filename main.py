@@ -3,145 +3,85 @@ import requests
 import csv
 import io
 import random
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-# Retrieve environment variables.
+# Config from environment
 BACKEND_URL = os.getenv('BACKEND_URL')
 USERNAME = os.getenv('USERNAME')
 PASSWORD = os.getenv('PASSWORD')
 WORKSPACE_UUID = os.getenv('WORKSPACE_UUID')
 
-LOGIN_PATH = '/auth/login'
-EXPORT_PATH = f'/ticket/export-pending/{WORKSPACE_UUID}'
-IMPORT_PATH = '/ticket/import-statuses'
+app = FastAPI(title='Ticket CSV Automation')
 
-def create_app() -> FastAPI:
-    """
-    Creates and configures a simple FastAPI application with all endpoints.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
 
-    By defining the routes here, we ensure they are registered on the
-    app instance that is returned by this factory function. This works
-    correctly with the uvicorn --factory flag.
-    """
-    app = FastAPI(
-        title='Ticket CSV Automation',
-        version='1.0.0',
-    )
+def get_token():
+    # Logs in and gets JWT token
+    url = f'{BACKEND_URL}/auth/login'
+    resp = requests.post(url, json={'email': USERNAME, 'password': PASSWORD})
+    resp.raise_for_status()
+    return resp.json()['data']
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=['*'],
-        allow_credentials=True,
-        allow_methods=['*'],
-        allow_headers=['*'],
-    )
+def fetch_pending_csv(token):
+    # Downloads pending tickets CSV from backend
+    url = f'{BACKEND_URL}/ticket/export-pending/{WORKSPACE_UUID}'
+    headers = {'Authorization': f'Bearer {token}'}
+    resp = requests.post(url, headers=headers)
+    resp.raise_for_status()
+    return resp.json().get('data', '')
 
-    def get_jwt_token():
-        if not all([BACKEND_URL, USERNAME, PASSWORD]):
-            raise ValueError('Environment variables BACKEND_URL, USERNAME, and PASSWORD must be set.')
-        
-        url = f'{BACKEND_URL}{LOGIN_PATH}'
-        payload = {'email': USERNAME, 'password': PASSWORD}
-        
-        try:
-            response = requests.post(url, json=payload)
-            response.raise_for_status()
-            return response.json()['data']
-        except requests.exceptions.RequestException as e:
-            raise HTTPException(status_code=500, detail=f'Authentication failed: {e}')
+def update_statuses(csv_content):
+    # Randomly updates 'PENDING' statuses to PENDING, OPEN, or CLOSED
+    input_csv = io.StringIO(csv_content)
+    reader = csv.DictReader(input_csv)
+    if not reader.fieldnames:
+        return ''
 
-    def fetch_csv(token):
-        if not WORKSPACE_UUID:
-            raise ValueError('Environment variable WORKSPACE_UUID must be set.')
+    output_csv = io.StringIO()
+    writer = csv.DictWriter(output_csv, fieldnames=reader.fieldnames)
+    writer.writeheader()
 
-        url = f'{BACKEND_URL}{EXPORT_PATH}'
-        headers = {'Authorization': f'Bearer {token}'}
-        
-        try:
-            response = requests.post(url, headers=headers)
-            response.raise_for_status()
-            
-            json_response: dict = response.json()
-            csv_content = json_response.get('data')
+    for row in reader:
+        if row.get('status') == 'PENDING':
+            r = random.random()
+            if r < 0.3:
+                row['status'] = 'PENDING'
+            elif r < 0.6:
+                row['status'] = 'OPEN'
+            else:
+                row['status'] = 'CLOSED'
+        writer.writerow(row)
 
-            return csv_content if csv_content is not None else ''
-        except requests.exceptions.RequestException as e:
-            raise HTTPException(status_code=500, detail=f'Failed to fetch CSV: {e}')
-        except (KeyError, ValueError) as e:
-            raise HTTPException(status_code=500, detail=f'Invalid response format from backend: {e}')
+    return output_csv.getvalue()
 
-    def update_csv(csv_content):
-        input_csv = io.StringIO(csv_content)
-        reader = csv.DictReader(input_csv)
-        fieldnames = reader.fieldnames
+def send_updated_csv(token, csv_content):
+    # Sends updated CSV back to backend
+    url = f'{BACKEND_URL}/ticket/import-statuses'
+    headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+    payload = {'csvContent': csv_content}
+    resp = requests.post(url, json=payload, headers=headers)
+    resp.raise_for_status()
+    return resp.json()
 
-        if not csv_content.strip() or not fieldnames:
-            return ''
+@app.post('/run-automation')
+def run_automation():
+    # Runs the full automation process
+    token = get_token()
+    csv_content = fetch_pending_csv(token)
+    if not csv_content.strip():
+        return {'message': 'No pending tickets found.'}
 
-        output_csv = io.StringIO()
-        writer = csv.DictWriter(output_csv, fieldnames=fieldnames)
-        writer.writeheader()
+    updated_csv = update_statuses(csv_content)
+    result = send_updated_csv(token, updated_csv)
+    return {'message': 'Automation complete', 'result': result}
 
-        for row in reader:
-            if row.get('status') == 'PENDING':
-                rand = random.random()
-                if rand < 0.3:
-                    new_status = 'PENDING'
-                elif rand < 0.6:
-                    new_status = 'OPEN'
-                else:
-                    new_status = 'CLOSED'
-                row['status'] = new_status
-            writer.writerow(row)
-
-        return output_csv.getvalue()
-
-    def send_updated_csv(token, csv_content):
-        url = f'{BACKEND_URL}{IMPORT_PATH}'
-        headers = {
-            'Authorization': f'Bearer {token}',
-            'Content-Type': 'application/json'
-        }
-        payload = {'csvContent': csv_content}
-
-        try:
-            response = requests.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            raise HTTPException(status_code=500, detail=f'Failed to send updated CSV: {e}')
-
-    def run_automation():
-        print('Authenticating...')
-        token = get_jwt_token()
-
-        print('Fetching Pending tickets CSV...')
-        csv_content = fetch_csv(token)
-
-        if not csv_content.strip():
-            return {'message': 'No pending tickets to process.'}
-
-        print('Processing CSV and updating statuses...')
-        updated_csv = update_csv(csv_content)
-
-        print('Sending updated CSV back to backend...')
-        result = send_updated_csv(token, updated_csv)
-
-        print('Update result:', result)
-        return {'message': 'Automation process completed successfully.', 'result': result}
-    
-    @app.post('/run-automation')
-    async def run_automation_endpoint():
-        try:
-            return run_automation()
-        except HTTPException as e:
-            raise e
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f'An unexpected error occurred: {e}')
-
-    @app.get("/health")
-    async def health_check():
-        return {"status": "ok"}
-    
-    return app
+@app.get('/health')
+def health_check():
+    return {'status': 'ok'}
