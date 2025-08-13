@@ -12,8 +12,7 @@ USERNAME = os.getenv('USERNAME')
 PASSWORD = os.getenv('PASSWORD')
 WORKSPACE_UUID = os.getenv('WORKSPACE_UUID')
 
-if __name__ == '__main__':
-    app = FastAPI(title='Ticket CSV Automation')
+app = FastAPI(title='Ticket CSV Automation')
 
 app.add_middleware(
     CORSMiddleware,
