@@ -12,7 +12,8 @@ USERNAME = os.getenv('USERNAME')
 PASSWORD = os.getenv('PASSWORD')
 WORKSPACE_UUID = os.getenv('WORKSPACE_UUID')
 
-app = FastAPI(title='Ticket CSV Automation')
+if __name__ == '__main__':
+    app = FastAPI(title='Ticket CSV Automation')
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,14 +24,12 @@ app.add_middleware(
 )
 
 def get_token():
-    # Logs in and gets JWT token
-    url = f'{BACKEND_URL}/auth/login'
+    url = f'{BACKEND_URL}/user/authenticate'
     resp = requests.post(url, json={'email': USERNAME, 'password': PASSWORD})
     resp.raise_for_status()
     return resp.json()['data']
 
 def fetch_pending_csv(token):
-    # Downloads pending tickets CSV from backend
     url = f'{BACKEND_URL}/ticket/export-pending/{WORKSPACE_UUID}'
     headers = {'Authorization': f'Bearer {token}'}
     resp = requests.post(url, headers=headers)
@@ -38,7 +37,6 @@ def fetch_pending_csv(token):
     return resp.json().get('data', '')
 
 def update_statuses(csv_content):
-    # Randomly updates 'PENDING' statuses to PENDING, OPEN, or CLOSED
     input_csv = io.StringIO(csv_content)
     reader = csv.DictReader(input_csv)
     if not reader.fieldnames:
