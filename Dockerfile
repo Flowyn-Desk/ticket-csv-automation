@@ -2,20 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y curl build-essential && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
 
-RUN curl -sSL https://install.python-poetry.org | python3 -
+RUN pip install --no-cache-dir -r requirements.txt
 
-ENV PATH="/root/.local/bin:$PATH"
-
-COPY poetry.lock pyproject.toml /app/
-
-RUN poetry config virtualenvs.create false \
- && poetry install --no-interaction --no-ansi --no-root
-
-COPY . /app
-
-ENV PYTHONUNBUFFERED=1
+COPY main.py .
 
 EXPOSE 8080
 
