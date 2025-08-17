@@ -29,6 +29,8 @@ async def simulate_external_support(request: Request):
     print('Running external support simulation')
     body: Dict = await request.json()
     csv_content: str = body.get('csvContent')
+    if not csv_content:
+        return JSONResponse(content={'message': 'The CSV content was not provided'}, status_code=HTTPStatus.BAD_REQUEST)
     return csv_automation.simulate_external_service_provider_iteration(csv_content)
 
 @app.post('/run-automation')
@@ -36,8 +38,10 @@ async def run_automation(request: Request):
     print('Running automation')
     body: Dict = await request.json()
     csv_content: str = body.get('csvContent')
+    if not csv_content:
+        return JSONResponse(content={'message': 'The CSV content was not provided'}, status_code=HTTPStatus.BAD_REQUEST)
     return csv_automation.run_automation(csv_content)
 
 @app.get('/health')
 def health_check():
-    return JSONResponse(content={}, status_code=HTTPStatus.OK)
+    return JSONResponse(content={'message': 'Alive and well'}, status_code=HTTPStatus.OK)

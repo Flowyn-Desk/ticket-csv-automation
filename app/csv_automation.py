@@ -81,9 +81,13 @@ class CsvAutomation:
     def run_automation(self) -> JSONResponse:
         try:
             token: str = self.__get_token()
+            print('The token was provided')
             pending_csv_content: str = self.__fetch_pending_csv(token)
+            print('Fetched pending tickets')
             after_iteraction_csv_content: str = self.simulate_iteration(pending_csv_content)
+            print('Simulated interaction')
             self.__import_csv(token, after_iteraction_csv_content)
+            print('Imported interaction')
             content: Dict[str, str] = {
                 'data': after_iteraction_csv_content,
                 'message': 'The automation was successfully executed'
