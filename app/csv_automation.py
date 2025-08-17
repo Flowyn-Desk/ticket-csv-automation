@@ -4,8 +4,7 @@ import io
 import math
 import os
 from typing import Dict
-
-from fastapi import Response
+from fastapi.responses import JSONResponse
 import requests
 
 
@@ -62,7 +61,7 @@ class CsvAutomation:
         writer.writerows(output_rows)
         return output_csv.getvalue()
     
-    def simulate_external_service_provider_iteration(self, csv_content: str) -> Response:
+    def simulate_external_service_provider_iteration(self, csv_content: str) -> JSONResponse:
         try:
             after_iteraction_csv_content: str = self.simulate_iteration(csv_content)
             content: Dict[str, str] = {
@@ -70,16 +69,16 @@ class CsvAutomation:
                 'message': 'The automation was successfully executed'
             }
             print('External support simulation finished successfully')
-            return Response(content=content, status_code=HTTPStatus.OK)
+            return JSONResponse(content=content, status_code=HTTPStatus.OK)
         except Exception as ex:
             print(ex)
             content: Dict[str, str] = {
                 'data': '',
                 'message': 'Fail while executing simulation'
             }
-            return Response(content=content, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            return JSONResponse(content=content, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
         
-    def run_automation(self) -> Response:
+    def run_automation(self) -> JSONResponse:
         try:
             token: str = self.__get_token()
             pending_csv_content: str = self.__fetch_pending_csv(token)
@@ -90,11 +89,11 @@ class CsvAutomation:
                 'message': 'The automation was successfully executed'
             }
             print('Automation finished successfully')
-            return Response(content=content, status_code=HTTPStatus.OK)
+            return JSONResponse(content=content, status_code=HTTPStatus.OK)
         except Exception as ex:
             print(ex)
             content: Dict[str, str] = {
                 'data': '',
                 'message': 'Fail while executing automation'
             }
-            return Response(content=content, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            return JSONResponse(content=content, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)

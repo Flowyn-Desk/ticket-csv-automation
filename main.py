@@ -1,8 +1,10 @@
 from typing import Dict
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from http import HTTPStatus
 import os
+
+from fastapi.responses import JSONResponse
 from app.csv_automation import CsvAutomation
 
 
@@ -38,4 +40,4 @@ async def run_automation(request: Request):
 
 @app.get('/health')
 def health_check():
-    return Response(content={}, status_code=HTTPStatus.OK)
+    return JSONResponse(content={}, status_code=HTTPStatus.OK)
