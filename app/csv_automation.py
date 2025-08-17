@@ -7,6 +7,9 @@ from typing import Dict
 from fastapi.responses import JSONResponse
 import requests
 
+from app.exceptions.custom_exception import CustomException
+from app.exceptions.external_service_exception import ExternalServiceException
+
 
 class CsvAutomation:
 
@@ -27,8 +30,10 @@ class CsvAutomation:
         url = f'{self.backend_url}/ticket/export-pending/{self.workspace_uuid}'
         headers = {'Authorization': f'Bearer {token}'}
         resp = requests.post(url, headers=headers)
-        resp.raise_for_status()
-        return resp.json().get('data', '')
+        csv_data: str = resp.json().get('data', '')
+        if not csv_data:
+            raise ExternalServiceException(resp.json().get('message', 'Failed to fetch pending tickets'))
+        return csv_data
 
     def __import_csv(self, token: str, csv_content: str):
         url = f'{self.backend_url}/ticket/import-statuses'
@@ -95,10 +100,16 @@ class CsvAutomation:
             }
             print('Automation finished successfully')
             return JSONResponse(content=content, status_code=HTTPStatus.OK)
+        except CustomException as ex:
+            content: Dict[str, str] = {
+                'data': {},
+                'message': ex.message
+            }
+            return JSONResponse(content=content, status_code=ex.status)
         except Exception as ex:
             print(ex)
             content: Dict[str, str] = {
-                'data': '',
+                'data': {},
                 'message': 'Fail while executing automation'
             }
             return JSONResponse(content=content, status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
