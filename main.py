@@ -1,3 +1,4 @@
+from typing import Dict
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Request, Response
 from http import HTTPStatus
@@ -13,7 +14,6 @@ WORKSPACE_UUID = os.getenv('WORKSPACE_UUID')
 app = FastAPI(title='Ticket CSV Automation')
 csv_automation = CsvAutomation()
 
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
@@ -25,13 +25,15 @@ app.add_middleware(
 @app.post('/simulate-external-support')
 async def simulate_external_support(request: Request):
     print('Running external support simulation')
-    csv_content: str = await request.body()
+    body: Dict = await request.body()
+    csv_content: str = body.get('csvContent')
     return csv_automation.simulate_external_service_provider_iteration(csv_content)
 
 @app.post('/run-automation')
 async def run_automation(request: Request):
     print('Running automation')
-    csv_content: str = await request.body()
+    body: Dict = await request.body()
+    csv_content: str = body.get('csvContent')
     return csv_automation.run_automation(csv_content)
 
 @app.get('/health')
