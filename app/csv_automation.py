@@ -15,6 +15,7 @@ class CsvAutomation:
         self.username = os.getenv('USERNAME')
         self.password = os.getenv('PASSWORD')
         self.workspace_uuid = os.getenv('WORKSPACE_UUID')
+        self.manager_uuid = os.getenv('MANAGER_UUID')
     
     def __get_token(self) -> str:
         url = f'{self.backend_url}/user/authenticate'
@@ -32,7 +33,7 @@ class CsvAutomation:
     def __import_csv(self, token: str, csv_content: str):
         url = f'{self.backend_url}/ticket/import-statuses'
         headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
-        payload = {'csvContent': csv_content}
+        payload = {'csvContent': csv_content, 'managerUuid': self.manager_uuid}
         resp = requests.post(url, json=payload, headers=headers)
         resp.raise_for_status()
         return resp.json()
