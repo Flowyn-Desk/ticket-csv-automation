@@ -25,14 +25,14 @@ app.add_middleware(
 @app.post('/simulate-external-support')
 async def simulate_external_support(request: Request):
     print('Running external support simulation')
-    body: Dict = await request.body()
+    body: Dict = await request.json()
     csv_content: str = body.get('csvContent')
     return csv_automation.simulate_external_service_provider_iteration(csv_content)
 
 @app.post('/run-automation')
 async def run_automation(request: Request):
     print('Running automation')
-    body: Dict = await request.body()
+    body: Dict = await request.json()
     csv_content: str = body.get('csvContent')
     return csv_automation.run_automation(csv_content)
 
